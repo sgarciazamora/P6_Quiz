@@ -153,3 +153,79 @@ exports.check = (req, res, next) => {
         answer
     });
 };
+
+//GET /quizzes/randomplay
+exports.randomplay = (req, res, next) => {
+
+        req.session.score = req.session.score || 0;
+        req.session.randomPlay = req.session.randomPlay || {};
+
+        models.quiz.count()
+            .then(function (count) {
+                return models.quiz.findAll({where:{id:{$notIn :req.session.randomPlay}}});
+            })
+            .then(function(quizzes){
+                if(quizzes.length>0)
+                    return quizzes[parseInt(Math.random()*quizzes.length)];
+                else
+                    return null;
+            })
+            .then(function (quiz){
+                if(quiz){
+                    if(req.session.score == req.session.randomPlay.length-1){
+                        req.session.randomPlay.push(quiz.id);
+                        res.render('quizzes/random_play',{
+                            quiz:quiz,
+                            score:req.session.score
+                        });} else{
+                        res.render('quizzes/random_play',{
+                            quiz:quiz,
+                            score:req.session.score
+                        });
+                    }
+                }else{
+                    var score = req.session.score;
+                    req.session.score =0;
+                    req.session.randomPlay = {};
+                    res.render('quizzes/random_nomore',{
+                        score:score
+                    });
+                }
+            })
+
+        .catch(error => {
+            req.flash('error', 'Error deleting the Quiz: ' + error.message);
+            next(error);
+        });
+
+};
+
+//GET /quizzes/randomcheck/:quiz?answer=respuesta
+exports.randomcheck = function (req, res, next) {
+    var answer = req.query.answer || "";
+    var result = answer.toLowerCase().trim() === req.quiz.answer.toLowerCase().trim();
+
+    /*
+    result = result.replace(/á/gi, "a");
+    result = result.replace(/é/gi, "e");
+    result = result.replace(/í/gi, "i");
+    result = result.replace(/ó/gi, "o");
+    result = result.replace(/ú/gi, "u");
+
+    answer = answer.replace(/á/gi, "a");
+    answer = answer.replace(/é/gi, "e");
+    answer = answer.replace(/í/gi, "i");
+    answer = answer.replace(/ó/gi, "o");
+    answer = answer.replace(/ú/gi, "u");
+    */
+    if(!result){
+        req.session.randomPlay ={};
+    }else{
+        req.session.score ++;}
+    res.render('quizzes/random_result', {
+        score:req.session.score,
+        quiz: req.quiz,
+        result: result,
+        answer: answer
+    });
+};
